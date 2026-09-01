@@ -88,7 +88,7 @@ Jeśli baza istnieje, zobaczysz liczbę meczów. Przy pierwszym uruchomieniu baz
 ### Pierwsze uruchomienie (jednorazowo)
 
 ```powershell
-cd C:\Data_Science\08_Machine_learning_1\football_predictor
+cd "TWOJA ŚCIEŻKA DOSTĘPU DO KATALOGU"
 python main.py init
 ```
 
@@ -140,7 +140,7 @@ Wszystkie tryby korzystają z **tej samej bazy danych** i **tych samych modeli**
 Wszystkie komendy uruchamiasz z folderu `football_predictor`:
 
 ```powershell
-cd C:\Data_Science\08_Machine_learning_1\football_predictor
+cd "TWOJA ŚCIEŻKA DOSTĘPU DO KATALOGU"
 python main.py <komenda>
 ```
 
