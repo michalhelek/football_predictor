@@ -67,7 +67,7 @@ Program:
 Otwórz terminal (PowerShell lub wiersz poleceń) i wykonaj:
 
 ```powershell
-cd C:\Data_Science\08_Machine_learning_1\football_predictor
+cd "TWOJA ŚCIEŻKA DO KATALOGU"
 pip install -r requirements.txt
 ```
 
@@ -251,7 +251,7 @@ Dotyczy tylko opcjonalnego źródła **football-data.org**. Domyślnie program u
 ### Uruchomienie
 
 ```powershell
-cd C:\Data_Science\08_Machine_learning_1\football_predictor
+cd "TWOJA ŚCIEŻKA DO KATALOGU"
 streamlit run app.py
 ```
 
@@ -445,7 +445,7 @@ Możesz zaplanować automatyczną aktualizację w **Harmonogramie zadań Windows
 
 - Program: `python`
 - Argumenty: `main.py update`
-- Folder startowy: `C:\Data_Science\08_Machine_learning_1\football_predictor`
+- Folder startowy: `TWOJA ŚCIEŻKA DO KATALOGU`
 - Częstotliwość: np. każdy poniedziałek o 8:00
 
 ---
