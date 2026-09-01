@@ -1,0 +1,130 @@
+================================================================================
+  FOOTBALL PREDICTOR — INSTRUKCJA INSTALACJI I URUCHOMIENIA (Windows)
+================================================================================
+
+Ta paczka zawiera gotowa aplikacje do prognozowania wynikow meczow pilkarskich.
+NIE MUSISZ instalowac Pythona — jest juz w folderze "python\".
+
+--------------------------------------------------------------------------------
+KROK 1 — ROZPAKUJ PACZKE
+--------------------------------------------------------------------------------
+
+1. Rozpakuj caly plik ZIP do dowolnego folderu na dysku, np.:
+   C:\Programy\FootballPredictor\
+   lub
+   D:\FootballPredictor\
+
+2. Po rozpakowaniu w folderze powinny byc m.in.:
+   - URUCHOM.bat          (plik startowy)
+   - app.py
+   - INSTRUKCJA_INSTALACJI.txt  (ten plik)
+   - folder python\
+   - folder data\
+   - folder installer\
+
+--------------------------------------------------------------------------------
+KROK 2 — TOKEN API (JEDNORAZOWO)
+--------------------------------------------------------------------------------
+
+Aplikacja pobiera terminarz meczow z internetu. Potrzebny jest darmowy token.
+
+1. Wejdz na strone: https://www.football-data.org/client/register
+2. Zarejestruj sie (e-mail, haslo) — rejestracja jest bezplatna.
+3. Skopiuj otrzymany token (dlugi ciag znakow).
+4. Otwórz plik:  data\.api_token  (Notatnik / Notepad)
+5. Wklej token, zapisz plik (Ctrl+S) i zamknij.
+
+   Przyklad zawartosci pliku (tylko token, bez cudzyslowow):
+   abc123def456...
+
+--------------------------------------------------------------------------------
+KROK 3 — URUCHOM APLIKACJE
+--------------------------------------------------------------------------------
+
+1. Kliknij DWUKROTNIE plik:  URUCHOM.bat
+
+2. Pojawi sie czarne okno — NIE ZAMYKAJ GO (to serwer aplikacji).
+
+3. Po kilku sekundach otworzy sie przegladarka pod adresem:
+   http://localhost:8501
+
+   Jesli przegladarka sie nie otworzy — wpisz ten adres recznie.
+
+4. Aby zamknac aplikacje — zamknij czarne okno terminala lub wcisnij Ctrl+C.
+
+--------------------------------------------------------------------------------
+KROK 4 — PIERWSZE URUCHOMIENIE (JEDNORAZOWO, ~5 MINUT)
+--------------------------------------------------------------------------------
+
+Przy pierwszym uzyciu baza danych jest pusta. Trzeba ja zainicjowac:
+
+1. W aplikacji (panel boczny po lewej) kliknij:
+   "Inicjalizacja bazy"
+
+2. Poczekaj kilka minut (pobieranie 5 lat historii meczow z internetu).
+
+3. Po zakonczeniu kliknij:
+   "Generuj prognozy"
+
+Gotowe — mozesz przegladac prognozy, terminarz i analizy druzyn.
+
+--------------------------------------------------------------------------------
+CODZIENNE UZYTKOWANIE
+--------------------------------------------------------------------------------
+
+1. Kliknij URUCHOM.bat
+2. W aplikacji wybierz model (np. Auto) i kliknij "Generuj prognozy"
+3. Przegladaj zakladki: Prognozy, Terminarz, Analiza druzyn itd.
+
+Po rozegraniu kolejki mozesz kliknac "Aktualizuj po kolejce" — dopisze wyniki
+i przetrenuje modele od nowa.
+
+--------------------------------------------------------------------------------
+WYMAGANIA
+--------------------------------------------------------------------------------
+
+- Windows 10 lub 11 (64-bit)
+- Polaczenie z internetem
+- Ok. 500 MB wolnego miejsca na dysku
+- Python NIE jest wymagany (jest w paczce)
+
+--------------------------------------------------------------------------------
+ROZWIAZYWANIE PROBLEMOW
+--------------------------------------------------------------------------------
+
+Problem: "Windows zablokowal plik .bat"
+Rozwiazanie: PPM na URUCHOM.bat -> Wlasciwosci -> zaznacz "Odblokuj" (jesli widoczne)
+
+Problem: Brak folderu python\
+Rozwiazanie: Paczka zostala rozpakowana niepelnie — rozpakuj ZIP ponownie.
+
+Problem: "Brak tokena API" / brak terminarza
+Rozwiazanie: Sprawdz plik data\.api_token — musi zawierac wylacznie token.
+
+Problem: Strona sie nie laduje
+Rozwiazanie: Upewnij sie, ze czarne okno URUCHOM.bat jest otwarte.
+             Wpisz recznie: http://localhost:8501
+
+Problem: Antywirus blokuje uruchomienie
+Rozwiazanie: Dodaj folder aplikacji do wyjatkow antywirusa.
+
+--------------------------------------------------------------------------------
+ZAKLADKI W APLIKACJI
+--------------------------------------------------------------------------------
+
+Prognozy          — wyniki H/D/A najblizszej kolejki (6 lig europejskich)
+Terminarz         — kalendarz meczow sezonu
+Analiza druzyn    — Elo, forma, statystyki
+Historia prognoz  — trafnosc wczesniejszych prognoz
+Porownanie modeli — Dixon-Coles, XGBoost, kursy, ensemble
+Tabela prognoz    — eksport do CSV
+Instrukcja        — pelna dokumentacja w aplikacji
+
+--------------------------------------------------------------------------------
+KONTAKT / ZRODLA DANYCH
+--------------------------------------------------------------------------------
+
+Dane historyczne: https://www.football-data.co.uk
+Terminarz (API):  https://www.football-data.org
+
+================================================================================

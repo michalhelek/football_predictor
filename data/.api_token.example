@@ -1,0 +1,3 @@
+# Skopiuj do pliku .api_token w folderze data/ (jedna linia = token)
+# albo ustaw zmienna srodowiskowa FOOTBALL_DATA_ORG_TOKEN
+YOUR_TOKEN_HERE

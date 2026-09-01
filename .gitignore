@@ -1,0 +1,23 @@
+# Sekrety
+data/.api_token
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Wygenerowane dane (pobierzesz je ponownie przez init/refresh)
+data/matches.db
+data/*.joblib
+data/metadata.json
+data/raw/
+
+# Wyniki prognoz (generowane lokalnie)
+output/
