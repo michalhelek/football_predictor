@@ -29,12 +29,33 @@ def _save_metadata(data: dict) -> None:
 
 def initialize_database(save_raw: bool = True) -> int:
     """Pobiera 5 lat historii i zapisuje do bazy."""
-    historical = download_historical_data(save_raw=save_raw)
+    from api_loader import FootballDataOrgError, get_api_token
+    from config import get_data_source
+
+    source = get_data_source()
+    if source in ("api", "hybrid"):
+        try:
+            get_api_token()
+        except FootballDataOrgError as exc:
+            raise RuntimeError(str(exc)) from exc
+
+    try:
+        historical = download_historical_data(save_raw=save_raw, source=source)
+    except FootballDataOrgError as exc:
+        raise RuntimeError(str(exc)) from exc
+
+    if historical.empty and source != "api":
+        try:
+            historical = download_historical_data(save_raw=save_raw, source="api")
+        except FootballDataOrgError as exc:
+            raise RuntimeError(str(exc)) from exc
+
     if historical.empty:
         raise RuntimeError(
             "Nie udało się pobrać danych historycznych. "
-            "football-data.co.uk może być niedostępne (503) — sprawdź token API "
-            "w Secrets (FOOTBALL_DATA_ORG_TOKEN) i ustaw FOOTBALL_DATA_SOURCE=hybrid."
+            f"Źródło: {source}. football-data.co.uk zwraca 503 — aplikacja musi użyć API. "
+            "Sprawdź token w Secrets (FOOTBALL_DATA_ORG_TOKEN) i ustaw "
+            "FOOTBALL_DATA_SOURCE = \"api\" lub \"hybrid\"."
         )
 
     added = upsert_matches(historical)

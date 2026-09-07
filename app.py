@@ -531,9 +531,22 @@ def main() -> None:
                 st.rerun()
             except Exception as exc:
                 st.error(str(exc))
+                try:
+                    from api_loader import get_api_token
+                    from config import get_data_source
+
+                    get_api_token()
+                    st.caption(f"Źródło danych: **{get_data_source()}** | token API: **OK**")
+                except Exception as token_exc:
+                    st.caption(f"Token API: **BRAK** ({token_exc})")
                 st.info(
-                    "Sprawdź w **Settings → Secrets**: "
-                    "`FOOTBALL_DATA_ORG_TOKEN` i `FOOTBALL_DATA_SOURCE = \"hybrid\"`."
+                    "W **Settings → Secrets** wklej dokładnie (bez spacji na końcu):\n\n"
+                    "```toml\n"
+                    "FOOTBALL_DATA_ORG_TOKEN = \"twój_token\"\n"
+                    "FOOTBALL_DATA_SOURCE = \"api\"\n"
+                    "```\n\n"
+                    "Zapisz (Save), poczekaj na restart i spróbuj ponownie. "
+                    "Inicjalizacja przez API trwa ok. 3–5 min — nie zamykaj strony."
                 )
 
         if st.button("📊 Generuj prognozy", use_container_width=True):

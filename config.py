@@ -28,16 +28,21 @@ def _resolve_data_source() -> str:
         import streamlit as st
 
         if hasattr(st, "secrets") and "FOOTBALL_DATA_SOURCE" in st.secrets:
-            return str(st.secrets["FOOTBALL_DATA_SOURCE"]).strip().lower()
+            return str(st.secrets["FOOTBALL_DATA_SOURCE"]).strip().lower().strip('"').strip("'")
     except Exception:
         pass
-    env = os.getenv("FOOTBALL_DATA_SOURCE", "").strip().lower()
+    env = os.getenv("FOOTBALL_DATA_SOURCE", "").strip().lower().strip('"').strip("'")
     if env:
         return env
     return "csv"
 
 
-DATA_SOURCE = _resolve_data_source()
+def get_data_source() -> str:
+    """Bieżące źródło danych (odczyt przy każdym wywołaniu — ważne na Streamlit Cloud)."""
+    return _resolve_data_source()
+
+
+DATA_SOURCE = get_data_source()
 
 # Mapowanie kodów CSV (co.uk) -> kody API (football-data.org)
 API_LEAGUE_CODES = {

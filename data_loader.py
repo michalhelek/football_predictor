@@ -137,9 +137,9 @@ def download_historical_data(
     source: str | None = None,
 ) -> pd.DataFrame:
     """Pobiera wyniki z ostatnich N sezonów (CSV, API lub hybrid)."""
-    from config import DATA_SOURCE
+    from config import get_data_source
 
-    source = (source or DATA_SOURCE).lower()
+    source = (source or get_data_source()).lower()
 
     if source == "api":
         from api_loader import download_historical_data_api
@@ -153,13 +153,9 @@ def download_historical_data(
         if not csv_df.empty:
             return csv_df
         print("  CSV niedostepne — pobieranie historii z football-data.org API...")
-        try:
-            from api_loader import download_historical_data_api
+        from api_loader import download_historical_data_api
 
-            return download_historical_data_api(leagues, num_seasons)
-        except Exception as exc:
-            print(f"  API fallback nieudany: {exc}")
-            return pd.DataFrame()
+        return download_historical_data_api(leagues, num_seasons)
 
     print("Zrodlo danych: football-data.co.uk CSV")
     csv_df = _download_historical_csv(leagues, num_seasons, save_raw)
@@ -167,14 +163,10 @@ def download_historical_data(
         return csv_df
     if source == "csv":
         return csv_df
-    try:
-        from api_loader import download_historical_data_api
+    from api_loader import download_historical_data_api
 
-        print("  CSV niedostepne — fallback API...")
-        return download_historical_data_api(leagues, num_seasons)
-    except Exception as exc:
-        print(f"  API fallback nieudany: {exc}")
-        return pd.DataFrame()
+    print("  CSV niedostepne — fallback API...")
+    return download_historical_data_api(leagues, num_seasons)
 
 
 def _download_historical_csv(
@@ -218,9 +210,9 @@ def _download_historical_csv(
 
 def download_fixtures(leagues: dict[str, str] | None = None, source: str | None = None) -> pd.DataFrame:
     """Pobiera nadchodzące mecze."""
-    from config import DATA_SOURCE
+    from config import get_data_source
 
-    source = (source or DATA_SOURCE).lower()
+    source = (source or get_data_source()).lower()
 
     if source in ("api", "hybrid"):
         try:
@@ -250,9 +242,9 @@ def refresh_current_season(
     source: str | None = None,
 ) -> pd.DataFrame:
     """Pobiera bieżący sezon dla aktualizacji bazy."""
-    from config import DATA_SOURCE
+    from config import get_data_source
 
-    source = (source or DATA_SOURCE).lower()
+    source = (source or get_data_source()).lower()
 
     if source == "api":
         from api_loader import refresh_current_season_api
