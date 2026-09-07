@@ -35,8 +35,11 @@ from updater import initialize_database, is_predicted_round_complete, update_aft
 
 def cmd_init(_: argparse.Namespace) -> None:
     print("Pobieranie danych historycznych (6 lig x 5 sezonow + kursy + statystyki)...")
-    added = initialize_database()
-    print(f"Zapisano/zaktualizowano mecze w bazie (+{added} nowych rekordów).")
+    result = initialize_database()
+    print(
+        f"Zapisano/zaktualizowano mecze w bazie: {result['added']} meczów, "
+        f"{result['with_odds']} z kursami (źródło: {result['source']})."
+    )
 
     print("Trening modeli prognozujących (XGBoost + Dixon-Coles)...")
     history = load_played_matches()

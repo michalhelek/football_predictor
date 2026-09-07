@@ -19,5 +19,8 @@ data/*.joblib
 data/metadata.json
 data/raw/
 
+# Baza seed dla Streamlit Cloud (commituj matches_seed.db — pełna historia + kursy)
+!data/matches_seed.db
+
 # Wyniki prognoz (generowane lokalnie)
 output/

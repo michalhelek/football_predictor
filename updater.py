@@ -10,7 +10,7 @@ import pandas as pd
 
 from config import METADATA_PATH, PREDICTIONS_PATH
 from data_loader import download_historical_data, fetch_finished_results
-from database import load_all_matches, load_played_matches, upsert_matches
+from database import load_all_matches, load_played_matches, restore_from_seed, seed_database_available, upsert_matches
 from predictor import retrain_and_predict
 
 
@@ -27,25 +27,48 @@ def _save_metadata(data: dict) -> None:
     )
 
 
-def initialize_database(save_raw: bool = True) -> int:
-    """Pobiera historię meczów i zapisuje do bazy."""
-    from api_loader import FootballDataOrgError, get_api_token, validate_api_token
+def initialize_database(save_raw: bool = True) -> dict:
+    """
+    Ładuje historię meczów do bazy.
+
+    Streamlit Cloud: preferuje matches_seed.db (8418 meczów + kursy z co.uk),
+    potem dogrywa najnowsze wyniki z API. Samo API nie ma kursów bukmacherskich.
+    """
+    from api_loader import FootballDataOrgError, validate_api_token
     from config import NUM_SEASONS, get_data_source
 
     source = get_data_source()
-    api_seasons = min(NUM_SEASONS, 2) if source == "api" else NUM_SEASONS
+
+    if seed_database_available():
+        count = restore_from_seed()
+        updates = fetch_finished_results(source="hybrid")
+        added = upsert_matches(updates) if not updates.empty else 0
+        _save_metadata(
+            {
+                "initialized_at": datetime.now().isoformat(),
+                "total_matches": count,
+                "source": "matches_seed.db + API",
+                "last_update": datetime.now().isoformat(),
+            }
+        )
+        played = load_played_matches()
+        return {
+            "added": count,
+            "with_odds": int(played["avg_h"].notna().sum()),
+            "source": "seed",
+            "api_updates": added,
+        }
 
     if source in ("api", "hybrid"):
         ok, msg = validate_api_token()
         if not ok:
             raise RuntimeError(msg)
-        get_api_token()
 
     try:
         historical = download_historical_data(
             save_raw=save_raw,
             source=source,
-            num_seasons=api_seasons if source == "api" else NUM_SEASONS,
+            num_seasons=NUM_SEASONS,
         )
     except FootballDataOrgError as exc:
         raise RuntimeError(str(exc)) from exc
@@ -55,26 +78,33 @@ def initialize_database(save_raw: bool = True) -> int:
             historical = download_historical_data(
                 save_raw=save_raw,
                 source="api",
-                num_seasons=api_seasons,
+                num_seasons=NUM_SEASONS,
             )
         except FootballDataOrgError as exc:
             raise RuntimeError(str(exc)) from exc
 
     if historical.empty:
         raise RuntimeError(
-            "Nie udało się pobrać żadnych meczów. "
-            f"Źródło: {source}. Sprawdź token na football-data.org i spróbuj ponownie."
+            "Nie udało się pobrać meczów. Dodaj plik data/matches_seed.db do repo "
+            "(pełna historia z kursami) lub poczekaj aż football-data.co.uk wróci online."
         )
 
-    added = upsert_matches(historical)
+    upsert_matches(historical)
+    played = load_played_matches()
     _save_metadata(
         {
             "initialized_at": datetime.now().isoformat(),
             "total_matches": len(historical),
+            "source": source,
             "last_update": datetime.now().isoformat(),
         }
     )
-    return added
+    return {
+        "added": len(historical),
+        "with_odds": int(played["avg_h"].notna().sum()),
+        "source": source,
+        "api_updates": 0,
+    }
 
 
 def _predicted_round_matches() -> pd.DataFrame | None:

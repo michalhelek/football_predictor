@@ -523,11 +523,22 @@ def main() -> None:
         if st.button("🚀 Inicjalizacja bazy", use_container_width=True):
             try:
                 with st.spinner(
-                    "Pobieranie 5 lat historii (CSV lub API, ok. 3–5 min na Streamlit Cloud)..."
+                    "Ładowanie bazy (seed + kursy lub pobieranie z internetu, ok. 1–5 min)..."
                 ):
-                    added = initialize_database(save_raw=False)
+                    result = initialize_database(save_raw=False)
                     _clear_caches()
-                st.success(f"Zapisano {added} rekordów.")
+                if result.get("source") == "seed":
+                    st.success(
+                        f"Załadowano **{result['added']}** meczów z bazy seed "
+                        f"(**{result['with_odds']}** z kursami). "
+                        f"Aktualizacje z API: {result.get('api_updates', 0)}."
+                    )
+                else:
+                    st.success(
+                        f"Zapisano **{result['added']}** meczów "
+                        f"(**{result['with_odds']}** z kursami). "
+                        "Uwaga: samo API nie ma kursów — dodaj matches_seed.db do repo."
+                    )
                 st.rerun()
             except Exception as exc:
                 st.error(str(exc))

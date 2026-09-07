@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import DB_PATH, EXTRA_COLUMNS, MATCH_DB_COLUMNS
+from config import DB_PATH, EXTRA_COLUMNS, MATCH_DB_COLUMNS, SEED_DB_PATH
 
 
 SQL_TYPE = {
@@ -111,6 +111,55 @@ def init_db(db_path: Path = DB_PATH) -> None:
         conn.commit()
 
 
+def _merge_with_existing_row(incoming: pd.Series, existing: pd.Series) -> pd.Series:
+    """Uzupełnia wynik z API; nie nadpisuje kursów/statystyk z co.uk."""
+    merged = incoming.copy()
+    for col in EXTRA_COLUMNS:
+        if col in existing.index and pd.isna(merged.get(col)) and pd.notna(existing[col]):
+            merged[col] = existing[col]
+    for col in ("fthg", "ftag", "ftr"):
+        if pd.notna(incoming.get(col)):
+            merged[col] = incoming[col]
+    return merged
+
+
+def _apply_existing_odds(records: pd.DataFrame, existing: pd.DataFrame) -> pd.DataFrame:
+    if existing.empty:
+        return records
+
+    from schedule import _match_key
+
+    lookup: dict[tuple, pd.Series] = {}
+    for _, row in existing.iterrows():
+        lookup[_match_key(row)] = row
+
+    rows: list[pd.Series] = []
+    for _, row in records.iterrows():
+        key = _match_key(row)
+        if key in lookup:
+            rows.append(_merge_with_existing_row(row, lookup[key]))
+        else:
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def seed_database_available() -> bool:
+    return SEED_DB_PATH.exists()
+
+
+def restore_from_seed(db_path: Path = DB_PATH) -> int:
+    """Kopiuje matches_seed.db → matches.db (pełna historia + kursy z co.uk)."""
+    import shutil
+
+    if not SEED_DB_PATH.exists():
+        raise FileNotFoundError(f"Brak pliku seed: {SEED_DB_PATH}")
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(SEED_DB_PATH, db_path)
+    repair_mixed_dates(db_path)
+    return len(load_played_matches(db_path))
+
+
 def upsert_matches(df: pd.DataFrame, db_path: Path = DB_PATH) -> int:
     """Dodaje nowe mecze; istniejące rekordy są aktualizowane."""
     if df.empty:
@@ -125,6 +174,7 @@ def upsert_matches(df: pd.DataFrame, db_path: Path = DB_PATH) -> int:
         from schedule import resolve_fixture_teams
 
         records = resolve_fixture_teams(records, history)
+        records = _apply_existing_odds(records, history)
 
     for col in MATCH_DB_COLUMNS:
         if col not in records.columns:
