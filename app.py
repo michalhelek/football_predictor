@@ -16,8 +16,6 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-os.environ.setdefault("FOOTBALL_DATA_SOURCE", "csv")
-
 from compare_models import format_comparison_report
 from config import COMPARISON_PATH, DB_PATH, LEAGUES, MANUAL_PATH, PREDICTIONS_PATH
 from database import load_played_matches
@@ -523,11 +521,20 @@ def main() -> None:
 
         st.divider()
         if st.button("🚀 Inicjalizacja bazy", use_container_width=True):
-            with st.spinner("Pobieranie 5 lat historii (może potrwać kilka minut)..."):
-                added = initialize_database()
-                _clear_caches()
-            st.success(f"Zapisano {added} rekordów.")
-            st.rerun()
+            try:
+                with st.spinner(
+                    "Pobieranie 5 lat historii (CSV lub API, ok. 3–5 min na Streamlit Cloud)..."
+                ):
+                    added = initialize_database(save_raw=False)
+                    _clear_caches()
+                st.success(f"Zapisano {added} rekordów.")
+                st.rerun()
+            except Exception as exc:
+                st.error(str(exc))
+                st.info(
+                    "Sprawdź w **Settings → Secrets**: "
+                    "`FOOTBALL_DATA_ORG_TOKEN` i `FOOTBALL_DATA_SOURCE = \"hybrid\"`."
+                )
 
         if st.button("📊 Generuj prognozy", use_container_width=True):
             try:

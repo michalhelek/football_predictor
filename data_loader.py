@@ -34,10 +34,17 @@ def _season_codes(num_seasons: int = NUM_SEASONS) -> list[str]:
 
 def _download_csv(url: str) -> pd.DataFrame | None:
     try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
+        response = requests.get(
+            url,
+            timeout=30,
+            headers={"User-Agent": "FootballPredictor/1.0"},
+        )
+        if response.status_code != 200:
+            print(f"  HTTP {response.status_code}: {url}")
+            return None
         content = response.content.decode("utf-8-sig", errors="replace")
         if "HomeTeam" not in content and "home_team" not in content.lower():
+            print(f"  Nieprawidlowa tresc CSV: {url}")
             return None
         return pd.read_csv(
             io.StringIO(content),
@@ -50,7 +57,8 @@ def _download_csv(url: str) -> pd.DataFrame | None:
         UnicodeDecodeError,
         pd.errors.ParserError,
         ValueError,
-    ):
+    ) as exc:
+        print(f"  Blad pobierania {url}: {exc}")
         return None
 
 
@@ -140,11 +148,33 @@ def download_historical_data(
         return download_historical_data_api(leagues, num_seasons)
 
     if source == "hybrid":
-        print("Zrodlo danych: hybrid (historia CSV + mozliwosc API)")
-        return _download_historical_csv(leagues, num_seasons, save_raw)
+        print("Zrodlo danych: hybrid (historia CSV + fallback API)")
+        csv_df = _download_historical_csv(leagues, num_seasons, save_raw)
+        if not csv_df.empty:
+            return csv_df
+        print("  CSV niedostepne — pobieranie historii z football-data.org API...")
+        try:
+            from api_loader import download_historical_data_api
+
+            return download_historical_data_api(leagues, num_seasons)
+        except Exception as exc:
+            print(f"  API fallback nieudany: {exc}")
+            return pd.DataFrame()
 
     print("Zrodlo danych: football-data.co.uk CSV")
-    return _download_historical_csv(leagues, num_seasons, save_raw)
+    csv_df = _download_historical_csv(leagues, num_seasons, save_raw)
+    if not csv_df.empty:
+        return csv_df
+    if source == "csv":
+        return csv_df
+    try:
+        from api_loader import download_historical_data_api
+
+        print("  CSV niedostepne — fallback API...")
+        return download_historical_data_api(leagues, num_seasons)
+    except Exception as exc:
+        print(f"  API fallback nieudany: {exc}")
+        return pd.DataFrame()
 
 
 def _download_historical_csv(

@@ -23,10 +23,21 @@ FIXTURES_URL = "https://www.football-data.co.uk/fixtures.csv"
 FOOTBALL_DATA_ORG_API = "https://api.football-data.org/v4"
 
 # Źródło danych: "csv" | "api" | "hybrid"
-# csv    = football-data.co.uk (domyślnie, ma kursy i statystyki)
-# api    = football-data.org (wymaga tokenu)
-# hybrid = historia CSV + fixtures/aktualizacje z API
-DATA_SOURCE = os.getenv("FOOTBALL_DATA_SOURCE", "csv").lower()
+def _resolve_data_source() -> str:
+    try:
+        import streamlit as st
+
+        if hasattr(st, "secrets") and "FOOTBALL_DATA_SOURCE" in st.secrets:
+            return str(st.secrets["FOOTBALL_DATA_SOURCE"]).strip().lower()
+    except Exception:
+        pass
+    env = os.getenv("FOOTBALL_DATA_SOURCE", "").strip().lower()
+    if env:
+        return env
+    return "csv"
+
+
+DATA_SOURCE = _resolve_data_source()
 
 # Mapowanie kodów CSV (co.uk) -> kody API (football-data.org)
 API_LEAGUE_CODES = {

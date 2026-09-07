@@ -28,10 +28,20 @@ class FootballDataOrgError(Exception):
 
 
 def get_api_token() -> str:
-    """Token z env lub pliku data/.api_token (jedna linia)."""
+    """Token z env, Streamlit Secrets lub pliku data/.api_token."""
     token = os.getenv("FOOTBALL_DATA_ORG_TOKEN", "").strip()
     if token:
         return token
+
+    try:
+        import streamlit as st
+
+        if hasattr(st, "secrets") and "FOOTBALL_DATA_ORG_TOKEN" in st.secrets:
+            token = str(st.secrets["FOOTBALL_DATA_ORG_TOKEN"]).strip()
+            if token:
+                return token
+    except Exception:
+        pass
 
     from config import API_TOKEN_FILE
 
@@ -41,7 +51,8 @@ def get_api_token() -> str:
             return token
 
     raise FootballDataOrgError(
-        "Brak tokenu API. Ustaw FOOTBALL_DATA_ORG_TOKEN lub zapisz token w data/.api_token"
+        "Brak tokenu API. Ustaw FOOTBALL_DATA_ORG_TOKEN (Secrets na Streamlit Cloud) "
+        "lub zapisz token w data/.api_token"
     )
 
 
