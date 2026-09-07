@@ -135,6 +135,35 @@ def _normalize_match(match: dict, div: str, season_year: int) -> dict | None:
     return row
 
 
+def validate_api_token() -> tuple[bool, str]:
+    """Sprawdza token rzeczywistym zapytaniem do API (nie tylko czy istnieje)."""
+    try:
+        token = get_api_token()
+    except FootballDataOrgError as exc:
+        return False, str(exc)
+
+    try:
+        response = requests.get(
+            f"{FOOTBALL_DATA_ORG_API}/competitions/PL/matches",
+            headers={"X-Auth-Token": token},
+            params={"season": _season_start_years(1)[0], "limit": 1},
+            timeout=30,
+        )
+        if response.status_code == 200:
+            return True, "Token API działa (Premier League)."
+        if response.status_code == 403:
+            return False, (
+                "403 Forbidden — token jest odrzucony przez API. "
+                "Skopiuj token ponownie z https://www.football-data.org/client/register "
+                "(Account → API Token) i wklej do Secrets."
+            )
+        if response.status_code == 429:
+            return False, "429 — za dużo zapytań. Poczekaj 1 minutę i spróbuj ponownie."
+        return False, f"API zwróciło HTTP {response.status_code}: {response.text[:200]}"
+    except requests.RequestException as exc:
+        return False, f"Błąd połączenia z API: {exc}"
+
+
 def _fetch_competition_matches(
     api_code: str,
     season_year: int,
@@ -145,11 +174,18 @@ def _fetch_competition_matches(
     if status:
         params["status"] = status
 
-    response = requests.get(url, headers=_api_headers(), params=params, timeout=30)
+    response = requests.get(
+        url,
+        headers=_api_headers(),
+        params=params,
+        timeout=30,
+    )
     if response.status_code == 403:
-        raise FootballDataOrgError(
-            "403 Forbidden - sprawdź token lub dostęp do tej ligi w planie API."
+        print(
+            f"  403 Forbidden: {api_code} sezon {season_year} "
+            "(pominięto — brak dostępu w planie API)"
         )
+        return []
     if response.status_code == 429:
         raise FootballDataOrgError(
             "429 Too Many Requests - przekroczono limit zapytań API (poczekaj chwilę)."
@@ -183,6 +219,8 @@ def download_historical_data_api(
                 matches = _fetch_competition_matches(
                     api_code, season_year, status="FINISHED"
                 )
+            except FootballDataOrgError:
+                raise
             except requests.RequestException as exc:
                 print(f"blad ({exc})")
                 time.sleep(API_REQUEST_DELAY_SEC)
@@ -198,7 +236,12 @@ def download_historical_data_api(
             time.sleep(API_REQUEST_DELAY_SEC)
 
     if not rows:
-        return pd.DataFrame()
+        ok, msg = validate_api_token()
+        if not ok:
+            raise FootballDataOrgError(msg)
+        raise FootballDataOrgError(
+            "API nie zwróciło żadnych meczów (403 dla wszystkich lig/sezonów)."
+        )
 
     df = pd.DataFrame(rows)
     df = df.drop_duplicates(

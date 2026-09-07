@@ -28,34 +28,42 @@ def _save_metadata(data: dict) -> None:
 
 
 def initialize_database(save_raw: bool = True) -> int:
-    """Pobiera 5 lat historii i zapisuje do bazy."""
-    from api_loader import FootballDataOrgError, get_api_token
-    from config import get_data_source
+    """Pobiera historię meczów i zapisuje do bazy."""
+    from api_loader import FootballDataOrgError, get_api_token, validate_api_token
+    from config import NUM_SEASONS, get_data_source
 
     source = get_data_source()
+    api_seasons = min(NUM_SEASONS, 2) if source == "api" else NUM_SEASONS
+
     if source in ("api", "hybrid"):
-        try:
-            get_api_token()
-        except FootballDataOrgError as exc:
-            raise RuntimeError(str(exc)) from exc
+        ok, msg = validate_api_token()
+        if not ok:
+            raise RuntimeError(msg)
+        get_api_token()
 
     try:
-        historical = download_historical_data(save_raw=save_raw, source=source)
+        historical = download_historical_data(
+            save_raw=save_raw,
+            source=source,
+            num_seasons=api_seasons if source == "api" else NUM_SEASONS,
+        )
     except FootballDataOrgError as exc:
         raise RuntimeError(str(exc)) from exc
 
     if historical.empty and source != "api":
         try:
-            historical = download_historical_data(save_raw=save_raw, source="api")
+            historical = download_historical_data(
+                save_raw=save_raw,
+                source="api",
+                num_seasons=api_seasons,
+            )
         except FootballDataOrgError as exc:
             raise RuntimeError(str(exc)) from exc
 
     if historical.empty:
         raise RuntimeError(
-            "Nie udało się pobrać danych historycznych. "
-            f"Źródło: {source}. football-data.co.uk zwraca 503 — aplikacja musi użyć API. "
-            "Sprawdź token w Secrets (FOOTBALL_DATA_ORG_TOKEN) i ustaw "
-            "FOOTBALL_DATA_SOURCE = \"api\" lub \"hybrid\"."
+            "Nie udało się pobrać żadnych meczów. "
+            f"Źródło: {source}. Sprawdź token na football-data.org i spróbuj ponownie."
         )
 
     added = upsert_matches(historical)

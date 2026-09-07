@@ -532,21 +532,24 @@ def main() -> None:
             except Exception as exc:
                 st.error(str(exc))
                 try:
-                    from api_loader import get_api_token
+                    from api_loader import validate_api_token
                     from config import get_data_source
 
-                    get_api_token()
-                    st.caption(f"Źródło danych: **{get_data_source()}** | token API: **OK**")
+                    ok, msg = validate_api_token()
+                    st.caption(
+                        f"Źródło: **{get_data_source()}** | "
+                        f"test API: **{'OK' if ok else 'BŁĄD'}** — {msg}"
+                    )
                 except Exception as token_exc:
-                    st.caption(f"Token API: **BRAK** ({token_exc})")
+                    st.caption(f"Test API: **BŁĄD** ({token_exc})")
                 st.info(
-                    "W **Settings → Secrets** wklej dokładnie (bez spacji na końcu):\n\n"
+                    "1. Wejdź na https://www.football-data.org/client/register → **Account** → skopiuj **API Token**\n\n"
+                    "2. W **Settings → Secrets** wklej (nowy token, jeśli stary nie działa):\n\n"
                     "```toml\n"
-                    "FOOTBALL_DATA_ORG_TOKEN = \"twój_token\"\n"
+                    "FOOTBALL_DATA_ORG_TOKEN = \"wklej_token_z_konta\"\n"
                     "FOOTBALL_DATA_SOURCE = \"api\"\n"
                     "```\n\n"
-                    "Zapisz (Save), poczekaj na restart i spróbuj ponownie. "
-                    "Inicjalizacja przez API trwa ok. 3–5 min — nie zamykaj strony."
+                    "3. **Save** → poczekaj 3–5 min na **Inicjalizacja bazy**"
                 )
 
         if st.button("📊 Generuj prognozy", use_container_width=True):
