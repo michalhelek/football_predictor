@@ -214,6 +214,38 @@ W linii **Lepszy model:** program wskazuje, który z powyższych miał **najwyż
 
 **Lepszy model** — w trybie **Auto** przy *Generuj prognozy* aplikacja może korzystać z wyniku tego porównania, wybierając lepszy wariant.
 
+### Raport szczegółowy: precision, recall, f1-score, support
+
+W raportie tekstowym pod każdym modelem widać tabelę z wierszami **H**, **D**, **A** (oraz wiersze *accuracy*, *macro avg*, *weighted avg*). Dotyczy ona **zbioru testowego** — ostatnich 20% meczów z bazy.
+
+| Wskaźnik | Co oznacza (prostym językiem) |
+|----------|-------------------------------|
+| **precision** (precyzja) | Gdy model **typuje dany wynik** (np. remis), jaki **procent** tych typów był trafiony. Wysoka precyzja przy **D** = rzadko myli się, gdy przewiduje remis. |
+| **recall** (czułość) | Jaki **procent rzeczywistych** wyników danego typu model **wyłapał**. Wysoki recall przy **H** = model dobrze łapie wygrane gospodarzy, mało ich przeocza. |
+| **f1-score** | Średnia harmoniczna precyzji i recall — **jedna liczba** pokazująca jakość dla danego wyniku (H, D lub A). Im bliżej **1,0** (100%), tym lepiej. |
+| **support** | **Ile meczów** w teście miało **rzeczywiście** taki wynik. Np. support=180 przy **H** = 180 meczów zakończyło się wygraną gospodarzy. To nie jest procent — to liczba meczów. |
+
+#### Przykład — wiersz **D** (remis)
+
+- **precision 0,35** — gdy model mówi „remis”, trafia w ok. 35% przypadków.
+- **recall 0,20** — z wszystkich prawdziwych remisów w teście model złapał ok. 20%.
+- **f1-score 0,26** — ogólna jakość przewidywania remisów (remisy są najtrudniejsze).
+- **support 412** — w teście było 412 remisów.
+
+#### Wiersze podsumowujące
+
+| Wiersz | Znaczenie |
+|--------|-----------|
+| **accuracy** | To samo co dokładność u góry — odsetek wszystkich trafionych prognoz. |
+| **macro avg** | Średnia z H, D i A **bez wag** — każdy wynik liczy się równo (remis ma taką samą wagę jak wygrana). |
+| **weighted avg** | Średnia **ważona liczbą meczów** (support) — wyniki częstsze (zwykle H i A) mają większy wpływ. |
+
+#### Na co zwracać uwagę w piłce nożnej?
+
+- **Remisy (D)** mają zwykle **niższe** precision i recall niż H/A — to normalne, remis jest najtrudniejszy do trafienia.
+- **Support** pokazuje, czy dany wynik był **rzadki czy częsty** w teście — przy małym support wskaźniki dla tego wiersza są mniej wiarygodne.
+- Porównuj te same kolumny **między modelami** (np. czy XGBoost ma lepszy f1 dla remisów niż Dixon-Coles).
+
 ### Jak powstaje porównanie?
 
 Program dzieli mecze z bazy na dwa zbiory **chronologicznie** (nie losowo):
