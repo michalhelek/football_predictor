@@ -6,6 +6,7 @@ import os
 import sys
 from datetime import datetime
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -41,6 +42,99 @@ OUTCOME_COLORS = {"W": "#2ecc71", "D": "#f39c12", "L": "#e74c3c"}
 
 def _pct(value: float) -> str:
     return f"{value:.0%}"
+
+
+def _y_domain(
+    values,
+    *,
+    padding_ratio: float = 0.1,
+    floor_zero: bool = False,
+    min_top: float | None = None,
+) -> tuple[float, float]:
+    """Zakres osi Y dopasowany do danych (zamiast skali od 0), żeby wykres nie był płaski."""
+    series = pd.to_numeric(pd.Series(values), errors="coerce").dropna()
+    if series.empty:
+        return 0.0, 1.0
+
+    y_min = float(series.min())
+    y_max = float(series.max())
+    if y_min == y_max:
+        step = abs(y_min) * 0.05 if y_min != 0 else 1.0
+        y_min -= step
+        y_max += step
+    else:
+        pad = (y_max - y_min) * padding_ratio
+        y_min -= pad
+        y_max += pad
+
+    if floor_zero and y_min > 0:
+        y_min = 0.0
+    if min_top is not None:
+        y_max = max(y_max, min_top)
+
+    return y_min, y_max
+
+
+def _render_scaled_line_chart(df: pd.DataFrame, *, height: int = 280, y_label: str | None = None) -> None:
+    plot = df.reset_index()
+    x_col, y_col = plot.columns[0], plot.columns[1]
+    y_min, y_max = _y_domain(plot[y_col], padding_ratio=0.08)
+
+    chart = (
+        alt.Chart(plot)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X(f"{x_col}:T", title="Data"),
+            y=alt.Y(
+                f"{y_col}:Q",
+                scale=alt.Scale(domain=[y_min, y_max]),
+                title=y_label or y_col,
+            ),
+            tooltip=[alt.Tooltip(f"{x_col}:T", title="Data"), alt.Tooltip(f"{y_col}:Q", format=".1f")],
+        )
+        .properties(height=height)
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+
+def _render_scaled_bar_chart(
+    df: pd.DataFrame,
+    *,
+    height: int = 280,
+    y_label: str | None = None,
+    floor_zero: bool = True,
+    categorical_x: bool = False,
+    min_top: float | None = None,
+) -> None:
+    plot = df.reset_index()
+    x_col, y_col = plot.columns[0], plot.columns[1]
+    y_min, y_max = _y_domain(
+        plot[y_col],
+        padding_ratio=0.12,
+        floor_zero=floor_zero,
+        min_top=min_top,
+    )
+    x_type = "N" if categorical_x else "T"
+    x_title = "" if categorical_x else "Data"
+
+    chart = (
+        alt.Chart(plot)
+        .mark_bar()
+        .encode(
+            x=alt.X(f"{x_col}:{x_type}", title=x_title),
+            y=alt.Y(
+                f"{y_col}:Q",
+                scale=alt.Scale(domain=[y_min, y_max]),
+                title=y_label or y_col,
+            ),
+            tooltip=[
+                alt.Tooltip(f"{x_col}:{x_type}", title="Data" if not categorical_x else "Wynik"),
+                alt.Tooltip(f"{y_col}:Q", format=".2f"),
+            ],
+        )
+        .properties(height=height)
+    )
+    st.altair_chart(chart, use_container_width=True)
 
 
 @st.cache_data(ttl=300)
@@ -126,7 +220,13 @@ def _prob_chart(row: pd.Series) -> None:
             "Prawdopodobieństwo": [row["prob_H"], row["prob_D"], row["prob_A"]],
         }
     ).set_index("Wynik")
-    st.bar_chart(probs, height=140)
+    _render_scaled_bar_chart(
+        probs,
+        height=140,
+        y_label="P",
+        floor_zero=False,
+        categorical_x=True,
+    )
 
 
 def _predictions_file_mtime() -> float:
@@ -258,7 +358,7 @@ def _render_team_analysis(played: pd.DataFrame, elo_timeline: pd.DataFrame) -> N
             st.caption("Brak danych Elo dla tej drużyny.")
         else:
             chart_df = team_elo.set_index("date")[["elo"]]
-            st.line_chart(chart_df, height=280)
+            _render_scaled_line_chart(chart_df, height=280, y_label="Elo")
 
     with chart_cols[1]:
         st.subheader("Ostatnie mecze")
@@ -266,7 +366,13 @@ def _render_team_analysis(played: pd.DataFrame, elo_timeline: pd.DataFrame) -> N
             st.caption("Brak rozegranych meczów.")
         else:
             form_df = recent.set_index("date")[["points"]]
-            st.bar_chart(form_df, height=280)
+            _render_scaled_bar_chart(
+                form_df,
+                height=280,
+                y_label="Punkty",
+                floor_zero=True,
+                min_top=3.0,
+            )
             display = recent.copy()
             display["date"] = display["date"].dt.strftime("%Y-%m-%d")
             st.dataframe(display, hide_index=True, use_container_width=True)
@@ -307,9 +413,12 @@ def _render_prediction_history(played: pd.DataFrame) -> None:
     if not summary["by_league"].empty:
         st.subheader("Trafność wg ligi")
         league_view = summary["by_league"].copy()
-        st.bar_chart(
+        _render_scaled_bar_chart(
             league_view.set_index("league")[["accuracy"]],
             height=220,
+            y_label="Dokładność",
+            floor_zero=False,
+            categorical_x=True,
         )
         league_view["accuracy"] = league_view["accuracy"].map(_pct)
         st.dataframe(league_view, hide_index=True, use_container_width=True)
