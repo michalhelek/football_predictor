@@ -131,6 +131,107 @@ Przycisk **🔄 Odśwież dane** ponownie pobiera historię meczów z **football
 
 ---
 
+## Wykres Elo — co to jest i jak go interpretować
+
+Wykres Elo znajdziesz w zakładce **Analiza drużyn** (po wyborze ligi i drużyny, po lewej stronie).
+
+### Co to jest Elo?
+
+**Elo** to liczbowa ocena **siły drużyny** obliczana na podstawie rozegranych meczów. Im wyższa wartość, tym drużyna jest uznawana za silniejszą.
+
+- Każda drużyna startuje z poziomu ok. **1500 punktów** (średnia).
+- Po **każdym meczu** rating się zmienia:
+  - **wygrana** → Elo rośnie,
+  - **porażka** → Elo spada,
+  - **remis** → mała zmiana w górę lub w dół (zależy od siły rywala).
+- Wynik z **silniejszym** rywalem daje większy wzrost przy wygranej; przegrana z dużo słabszym spada mocniej.
+- Przy obliczeniach uwzględniana jest **przewaga własnego boiska** (gospodarze mają lekko łatwiej).
+
+Wykres pokazuje, jak Elo drużyny **zmieniało się w czasie** — punkt na wykresie = rating **po** danym meczu.
+
+### Jak czytać wykres?
+
+| Co widzisz | Co to znaczy |
+|------------|--------------|
+| **Linia idzie w górę** | Dobra passa — wygrane lub remisy z mocnymi rywalami |
+| **Linia idzie w dół** | Słabsze wyniki — porażki lub remisy z słabszymi |
+| **Pozioma linia** | Stabilna forma — wyniki zgodne z oczekiwaniami |
+| **Elo powyżej 1500** | Drużyna powyżej średniej w lidze |
+| **Elo poniżej 1500** | Drużyna poniżej średniej w lidze |
+| **Duży skok w górę/dół** | Niespodziany wynik względem siły rywala (np. wygrana z faworytem) |
+
+Obok wykresu zobaczysz też liczbę **Aktualne Elo** — to ostatnia wartość z wykresu, używana m.in. przez model XGBoost przy prognozach.
+
+### Na co uważać?
+
+- Elo liczone jest **osobno w każdej lidze** — nie porównuj bezpośrednio drużyn z Premier League i La Ligi.
+- To **nie jest tabela ligowa** — drużyna z wysokim Elo nie musi być liderem tabeli (np. ma mniej meczów z topowymi rywalami).
+- Wykres opiera się na **historii w bazie** — im więcej sezonów w bazie, tym stabilniejszy obraz formy długoterminowej.
+- Elo to **jedna z wielu cech** modelu — prognoza końcowa uwzględnia też formę, kursy i statystyki meczów.
+
+---
+
+## Zakładka Porównanie modeli — co to jest i jak ją interpretować
+
+Zakładka **Porównanie modeli** pokazuje, **który sposób prognozowania był najtrafniejszy** na historycznych meczach z bazy. To pomaga zrozumieć różnice między modelami — nie musisz tego robić co tydzień.
+
+### Jak uruchomić porównanie?
+
+1. W **panelu bocznym** kliknij **⚖️ Porównaj modele**.
+2. Poczekaj **1–3 minuty** (program trenuje modele na danych z bazy).
+3. Przejdź do zakładki **Porównanie modeli** — zobaczysz wyniki.
+
+Jeśli zakładka jest pusta, najpierw uruchom porównanie w panelu bocznym. Wynik zapisywany jest też w pliku `output/model_comparison.txt` i może się wyświetlić przy kolejnym wejściu w aplikację.
+
+### Co zobaczysz na ekranie?
+
+Na górze zakładki **5 wskaźników dokładności** (w procentach):
+
+| Model | Co oznacza |
+|-------|------------|
+| **Dixon-Coles** | Model statystyczny oparty na bramkach i sile drużyn |
+| **XGBoost** | Uczenie maszynowe (Elo, forma, kursy, statystyki) |
+| **MLP** | Sieć neuronowa na tych samych cechach co XGBoost |
+| **Kursy** | Benchmark — wybór faworyta bukmachera (najniższy kurs) |
+| **Ensemble** | Średnia prawdopodobieństw z Dixon-Coles + XGBoost |
+
+Pod spodem jest **raport tekstowy** z dokładnością, log-loss, liczbą ocenionych meczów i czasem treningu.
+
+W linii **Lepszy model:** program wskazuje, który z powyższych miał **najwyższą dokładność** na zbiorze testowym.
+
+### Jak to interpretować?
+
+**Dokładność** — jaki procent meczów model trafił w wynik (H, D lub A).
+
+| Dokładność | Co to znaczy |
+|------------|--------------|
+| **~33%** | Losowy typ (3 wyniki) — bardzo słabo |
+| **~47–50%** | Typowy poziom modeli własnych (DC, XGBoost, MLP, Ensemble) |
+| **~52–53%** | Kursy bukmacherskie — górny benchmark rynku |
+| **Powyżej 55%** | Na dłuższej próbie rzadko się utrzymuje — piłka nożna jest niepewna |
+
+**Log-loss** — im **niższy**, tym lepiej model ocenia prawdopodobieństwa (nie tylko trafia w wynik, ale też „pewność” prognozy).
+
+**Lepszy model** — w trybie **Auto** przy *Generuj prognozy* aplikacja może korzystać z wyniku tego porównania, wybierając lepszy wariant.
+
+### Jak powstaje porównanie?
+
+Program dzieli mecze z bazy na dwa zbiory **chronologicznie** (nie losowo):
+
+- **80% starszych meczów** → trening modeli,
+- **20% najnowszych meczów** → test (sprawdzenie trafności).
+
+Dzięki temu ocena jest realistyczna — modele nie „widzą przyszłości”.
+
+### Na co uważać?
+
+- Porównanie dotyczy **przeszłości** — lepszy model w teście nie gwarantuje trafności na **nadchodzących** meczach.
+- **Kursy** działają tylko tam, gdzie w bazie są kursy bukmacherskie (historyczne mecze z co.uk).
+- Uruchamianie porównania **obciąża API i czas** — wystarczy co kilka tygodni lub po dużej aktualizacji bazy.
+- Do codziennych prognoz wystarczy **Ensemble** lub **Auto** — ta zakładka służy głównie do analizy i wyboru strategii.
+
+---
+
 ## Typowy schemat pracy
 
 ```
