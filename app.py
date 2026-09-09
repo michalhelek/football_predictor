@@ -704,22 +704,48 @@ def main() -> None:
             from database import upsert_matches
 
             with st.spinner("Pobieranie CSV z football-data.co.uk..."):
-                data = download_historical_data(save_raw=True)
+                data = download_historical_data(save_raw=True, source="csv")
                 updated = upsert_matches(data)
                 _clear_caches()
-            st.success(f"Zaktualizowano {updated} rekordów.")
+            if updated:
+                st.success(f"Zaktualizowano {updated} rekordów.")
+            else:
+                st.warning(
+                    "Brak nowych danych z co.uk (serwis może być chwilowo niedostępny). "
+                    "Na Streamlit Cloud kursy masz już w bazie seed."
+                )
 
         force_update = st.checkbox("Wymuś aktualizację (--force)")
         if st.button("📥 Aktualizuj po kolejce", use_container_width=True):
-            with st.spinner("Pobieranie wyników i ponowny trening..."):
-                result = update_after_round(force=force_update)
+            try:
+                with st.spinner("Pobieranie wyników i ponowny trening (ok. 2–4 min)..."):
+                    result = update_after_round(force=force_update)
+                    _clear_caches()
+                if result["updated"]:
+                    n_preds = result.get("new_predictions_count", 0)
+                    st.success(
+                        f"Baza i modele zaktualizowane. "
+                        f"Nowe prognozy: {n_preds} meczów."
+                    )
+                    _clear_caches()
+                    st.rerun()
+                else:
+                    st.warning(result["reason"])
+            except Exception as exc:
+                from api_loader import FootballDataOrgError
+
                 _clear_caches()
-            if result["updated"]:
-                st.success("Baza i modele zaktualizowane.")
-                _clear_caches()
-                st.rerun()
-            else:
-                st.warning(result["reason"])
+                if isinstance(exc, FootballDataOrgError) or "429" in str(exc):
+                    st.error(str(exc))
+                    st.info(
+                        "Limit darmowego API (~10 zapytań/min). "
+                        "Poczekaj **1–2 minuty** i kliknij ponownie. "
+                        "Przy dużej bazie (seed) pełna historia nie jest już pobierana — "
+                        "aktualizowany jest tylko bieżący sezon."
+                    )
+                else:
+                    st.error(f"Błąd aktualizacji: {exc}")
+                    st.exception(exc)
 
         st.divider()
         pred_mtime = _predictions_file_mtime()

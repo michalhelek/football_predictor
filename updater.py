@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import METADATA_PATH, PREDICTIONS_PATH
+from config import METADATA_PATH, PREDICTIONS_PATH, get_data_source
 from data_loader import download_historical_data, fetch_finished_results
-from database import load_all_matches, load_played_matches, restore_from_seed, seed_database_available, upsert_matches
+from database import load_played_matches, restore_from_seed, seed_database_available, upsert_matches
 from predictor import retrain_and_predict
 
 
@@ -153,6 +153,40 @@ def is_predicted_round_complete(
     pred_keys = _prediction_keys(predictions)
     return all(key in played_keys for key in pred_keys)
 
+
+def _sync_historical_for_update(played_count: int) -> tuple[pd.DataFrame, str]:
+    """
+    Przy aktualizacji kolejki nie pobieramy 5 sezonów z API (30 zapytań → 429).
+    Historia + kursy są już w bazie seed; wystarczy bieżący sezon + opcjonalnie CSV.
+    """
+    source = get_data_source()
+
+    if source in ("csv", "hybrid"):
+        print("Odswiezanie kursow i statystyk z football-data.co.uk...")
+        historical = download_historical_data(save_raw=False, source="csv")
+        if not historical.empty:
+            return historical, "csv"
+        if source == "csv":
+            return historical, "csv"
+        print("  CSV niedostepne — pominięto odswiezanie historii.")
+
+    if played_count >= 1000:
+        print(
+            "  Pominięto pełną historię API — baza zawiera już dane historyczne "
+            f"({played_count} meczów)."
+        )
+        return pd.DataFrame(), "skipped"
+
+    print("  Baza bez pełnej historii — uzupełnienie bieżącego sezonu z API...")
+    from api_loader import refresh_current_season_api
+
+    current = refresh_current_season_api()
+    if current.empty:
+        return current, "api_current"
+    finished = current[current["ftr"].isin(["H", "D", "A"])].copy()
+    return finished, "api_current"
+
+
 def update_after_round(force: bool = False) -> dict:
     """
     Pobiera najnowsze wyniki, dopisuje do bazy, trenuje model i generuje prognozy.
@@ -180,7 +214,10 @@ def update_after_round(force: bool = False) -> dict:
             "reason": f"Kolejka nie została jeszcze w pełni rozegrana ({pending} meczów bez wyniku).",
         }
 
-    # Wyniki bieżącego sezonu: hybrid (co.uk + API) — samo CSV ma opóźnienie i luki
+    played_before = load_played_matches()
+    played_count = len(played_before)
+
+    # Wyniki bieżącego sezonu: hybrid (co.uk + API) — ok. 6 zapytań API, nie 30
     print("Synchronizacja wynikow biezacego sezonu (CSV + API)...")
     finished = fetch_finished_results(source="hybrid")
     added_current = upsert_matches(finished) if not finished.empty else 0
@@ -188,10 +225,10 @@ def update_after_round(force: bool = False) -> dict:
         latest = pd.to_datetime(finished["date"]).max().date()
         print(f"  Rozegrane w paczce: {len(finished)} | ostatni mecz: {latest}")
 
-    # Historia 5 sezonów z co.uk (kursy + statystyki) — aktualizacja istniejących wierszy
-    print("Odswiezanie historii z football-data.co.uk...")
-    historical = download_historical_data(save_raw=False)
+    historical, hist_source = _sync_historical_for_update(played_count)
     added_hist = upsert_matches(historical) if not historical.empty else 0
+    if added_hist:
+        print(f"  Zaktualizowano wiersze historii ({hist_source}): {added_hist}")
 
     metrics, new_predictions = retrain_and_predict()
 

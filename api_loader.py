@@ -168,32 +168,43 @@ def _fetch_competition_matches(
     api_code: str,
     season_year: int,
     status: str | None = None,
+    *,
+    max_retries: int = 4,
 ) -> list[dict]:
     url = f"{FOOTBALL_DATA_ORG_API}/competitions/{api_code}/matches"
     params: dict[str, str | int] = {"season": season_year}
     if status:
         params["status"] = status
 
-    response = requests.get(
-        url,
-        headers=_api_headers(),
-        params=params,
-        timeout=30,
-    )
-    if response.status_code == 403:
-        print(
-            f"  403 Forbidden: {api_code} sezon {season_year} "
-            "(pominięto — brak dostępu w planie API)"
+    for attempt in range(max_retries):
+        response = requests.get(
+            url,
+            headers=_api_headers(),
+            params=params,
+            timeout=30,
         )
-        return []
-    if response.status_code == 429:
-        raise FootballDataOrgError(
-            "429 Too Many Requests - przekroczono limit zapytań API (poczekaj chwilę)."
-        )
-    response.raise_for_status()
+        if response.status_code == 403:
+            print(
+                f"  403 Forbidden: {api_code} sezon {season_year} "
+                "(pominięto — brak dostępu w planie API)"
+            )
+            return []
+        if response.status_code == 429:
+            if attempt >= max_retries - 1:
+                raise FootballDataOrgError(
+                    "429 Too Many Requests — przekroczono limit zapytań API. "
+                    "Poczekaj 1–2 minuty i spróbuj ponownie."
+                )
+            wait = API_REQUEST_DELAY_SEC * (2**attempt)
+            print(f"  429 — czekam {wait:.0f}s przed ponowieniem ({attempt + 1}/{max_retries})...")
+            time.sleep(wait)
+            continue
+        response.raise_for_status()
 
-    payload = response.json()
-    return payload.get("matches", [])
+        payload = response.json()
+        return payload.get("matches", [])
+
+    return []
 
 
 def download_historical_data_api(
